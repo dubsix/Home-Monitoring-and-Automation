@@ -1,5 +1,22 @@
-#include <Arduino.h>
+/*
+ * 
+ *   Sketch by Award Digital - Warwick Ward 2016
+ *   
+ *   Sketch Incorporates:
+ *   DEVICES
+ *   - NodeMCU 1.0 Amica
+ *   - DHT122
+ *   - HC-SR04
+ *   - BMP180
+ *   
+ *   SERVICES
+ *   - Thingspeak
+ *   - CloudMQTT
+ *   - Arduino OTA Updates
+ *    
+ */
 
+#include <Arduino.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP085_U.h>
 #include <NewPing.h>
@@ -20,7 +37,6 @@ const char* host = "dubNodeMCU-WaterTank";
 const char* mqtt_server = "m10.cloudmqtt.com";
 WiFiClient espClient;
 PubSubClient client(espClient);
-
 
 //THINKSPEAK SETUP
 unsigned long tsChannelNumber = 70809;
@@ -50,7 +66,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     //digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
     // but actually the LED is on; this is because
     // it is acive low on the ESP-01)
-    client.publish("/device/dubesp-watertank/out", "1");
+    client.publish("/device/dubnodemcu-watertank/out", "1");
   } else {
     //digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
   }
@@ -65,10 +81,10 @@ void reconnect() {
     if (client.connect("ESP8266Client","water","water")) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("/device/dubesp-watertank/out", "1");
+      client.publish("/device/dubnodemcu-watertank/out", "1");
       // ... and resubscribe
       //client.subscribe("inTopic");
-      client.subscribe("/device/dubesp-watertank/in");
+      client.subscribe("/device/dubnodemcu-watertank/in");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -210,16 +226,22 @@ void setup() {
 
 
 void loop() {
+  //---------------------
   //OTA CHECK
+  //---------------------
   ArduinoOTA.handle();
 
+  //-------------------------------
   //PubSubClient
+  //-------------------------------
   if (!client.connected()) {
     reconnect();
   }
   client.loop();
 
+  //------------------------------------------
   // HEARTBEAT 2 SECTION PULSE
+  //------------------------------------------
     unsigned long currentMillisHeartbeat = millis();
      if (currentMillisHeartbeat - previousMillisHeartbeat >= intervalHeartbeat) {
       previousMillisHeartbeat = currentMillisHeartbeat;
@@ -232,14 +254,16 @@ void loop() {
       }
       // set the LED with the ledState of the variable:
       digitalWrite(BUILTIN_LED, ledState);
-      Serial.println("Heartbeat msg: dubESP-watertank");
+      Serial.println("Heartbeat msg: dubNodeMCU-watertank");
      }
      
     unsigned long currentMillisSensor = millis();
    if (currentMillisSensor - previousMillisSensor >= intervalSensor) {
     previousMillisSensor = currentMillisSensor;
-  
+
+  //--------------------------------------
   //DHT22 SENSOR READING
+  //--------------------------------------
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     float h = dht.readHumidity();
@@ -272,8 +296,9 @@ void loop() {
     //Serial.print(hif);
     //Serial.println(" *F");
 
+    //------------------------------------------
     //SMOOTHING-RESULT-TEMERATURE
-    
+    //------------------------------------------
     totalTemp = totalTemp - readingsTemp[readIndexTemp]; // subtract the last reading
     readingsTemp[readIndexTemp] = (int)t; // read from the sensor:
     totalTemp = totalTemp + readingsTemp[readIndexTemp];// add the reading to the total:
@@ -283,8 +308,9 @@ void loop() {
         readIndexTemp = 0; // ...wrap around to the beginning:
     }
 
+    //----------------------------------------
     //SMOOTHING-RESULT-HUMIDITY
-    
+    //----------------------------------------
     totalHumid = totalHumid - readingsHumid[readIndexHumid]; // subtract the last reading
     readingsHumid[readIndexHumid] = (int)h; // read from the sensor:
     totalHumid = totalHumid + readingsHumid[readIndexHumid];// add the reading to the total:
@@ -294,8 +320,9 @@ void loop() {
         readIndexHumid = 0; // ...wrap around to the beginning:
     }
 
+    //------------------------------------
     //SMOOTHING-RESULT-HEATINDEX
-    
+    //------------------------------------
     totalIndex = totalIndex - readingsIndex[readIndexIndex]; // subtract the last reading
     readingsIndex[readIndexIndex] = (int)hic; // read from the sensor:
     totalIndex = totalIndex + readingsIndex[readIndexIndex];// add the reading to the total:
@@ -315,8 +342,9 @@ void loop() {
     //Serial.print("Average Heat Index: ");
     //Serial.println(averageIndex);       // send it to the computer as ASCII digits
 
-
+    //-----------------------------------------
     //BMP180 SENSOR READING
+    //-----------------------------------------
     sensors_event_t event;
     bmp.getEvent(&event);
    
@@ -343,12 +371,16 @@ void loop() {
     Serial.println("Sensor error");
     }
 
+    //---------------------------------------
     //HC-SR04-READING
+    //---------------------------------------
     unsigned int uS = sonar.ping_cm();
     Serial.print(uS);
     Serial.println("cm");
-    
+
+    //---------------------------------------
     //HC-SR04-SMOOTHING-RESULT
+    //---------------------------------------
     totalWater = totalWater - readingsWater[readIndexWater]; // subtract the last reading
     readingsWater[readIndexWater] = uS; // read from the sensor:
     totalWater = totalWater + readingsWater[readIndexWater];// add the reading to the total:
@@ -368,8 +400,9 @@ void loop() {
     Serial.print(waterLevel);       // send it to the computer as ASCII digits
     Serial.println(" %\t");
     
-
+    //-----------------------------------------------
     //THINGSPEAK WRTIE VALUES AFTER 10 READS
+    //-----------------------------------------------
         if (warmUpLogging++ < 11){
       Serial.println("Thingspeak Values Uploading... still warming up...");
     } else {
@@ -383,4 +416,3 @@ void loop() {
     
   }
 }
-
